@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -154,24 +154,34 @@
     .tag{ font-size:10.5px; padding:2px 6px; }
   }
   @media (prefers-reduced-motion:reduce){ .banner.crit,.src .cloud{ animation:none; } }
+  .rg{ display:none; } .rows .nm em{ display:none; } .row{ grid-template-columns:minmax(0,1fr) auto; } .row .val{ text-align:right; }
+  .pill .an em{ font-size:11px; }
+  .top{ flex-wrap:nowrap; } .tools{ flex-wrap:nowrap; } .tools > *{ flex:none; }
+  .notice,.chip{ display:none !important; }
+  @media (max-width:1500px){ .brand p{ display:none; } }
+  @media (max-width:1240px){ .top,.tools{ flex-wrap:wrap; } }
+  @media (max-width:980px){ .top{ flex-wrap:wrap; } .tools{ flex-wrap:wrap; } }
+  #chk-card .nm em{ display:block; font-size:11px; } #chk-card .row{ min-height:30px; padding:2px 0; } #chk-card .nm{ font-size:13px; }
+  .cs{ font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:12px; background:var(--soft); color:var(--dim); white-space:nowrap; }
+  .cs.ok{ background:var(--okbg); color:var(--ok); }
 </style>
 </head>
 <body>
 <div class="app">
   <header class="top">
-    <div class="brand"><h1>SHIELD-X Glove</h1><p>Soldier health, fall and gas monitoring · Internet of Battlefield Things</p><div id="notice" class="notice" hidden></div></div>
+    <div class="brand"><h1>SHIELD-X Glove</h1><p>Soldier health, fall and gas monitor</p><div id="notice" class="notice" hidden></div></div>
     <div class="tools">
       <div class="seg" role="group" aria-label="Data source">
         <button id="m-sim" type="button" aria-pressed="true">Simulation</button>
         <button id="m-live" type="button" aria-pressed="false">Live (USB)</button>
       </div>
-      <button id="connect" class="btn primary" type="button" hidden>Connect base station</button>
-      <button id="selftest" class="btn" type="button" hidden>Send test lines</button>
+      <button id="connect" class="btn primary" type="button" hidden>Connect</button>
+      <button id="selftest" class="btn" type="button" hidden>Test lines</button>
       <select id="r-label" aria-label="Label for live recording" hidden></select>
       <button id="stop" class="btn" type="button">Stop simulation</button>
       <button id="reset" class="btn" type="button">Reset</button>
       <span class="csvgrp"><span class="cnt" id="r-count">0 rows</span><button class="btn primary" type="button" id="r-dl" disabled>Download CSV</button><button class="btn" type="button" id="r-clear" disabled>Clear</button></span>
-      <button id="theme" class="btn" type="button" aria-pressed="false" title="Switch between the light blue view and the dark hologram view">Hologram view</button>
+      <button id="theme" class="btn" type="button" aria-pressed="false" title="Switch between the light blue view and the dark hologram view">Hologram</button>
       <span id="chip" class="chip" hidden>Simulation</span>
     </div>
   </header>
@@ -179,25 +189,35 @@
   <section class="main">
     <div class="col">
       <div class="card">
-        <div class="ct"><span>Soldier vitals</span><i id="age">no data yet</i></div>
+        <div class="ct"><span>Vitals</span><i id="age">no data yet</i></div>
         <div class="rows">
           <div class="row"><div class="nm"><span class="dot" id="beat"></span>Heart rate<em>MAX30102</em></div><div class="val"><b id="v-hr">--</b>bpm</div><div class="rg">60 to 100</div></div>
           <div class="row"><div class="nm">Blood oxygen<em>MAX30102</em></div><div class="val"><b id="v-spo2">--</b>%</div><div class="rg">95 to 100</div></div>
           <div class="row"><div class="nm">Temperature<em>DHT11</em></div><div class="val"><b id="v-temp">--</b>°C</div><div class="rg">0 to 50</div></div>
           <div class="row"><div class="nm">Humidity<em>DHT11</em></div><div class="val"><b id="v-hum">--</b>%</div><div class="rg">20 to 90</div></div>
           <div class="row"><div class="nm">Motion<em>MPU6050</em></div><div class="val"><b id="v-acc">--</b>g</div><div class="rg">fall above 2.5 g</div></div>
-          <div class="row"><div class="nm">Orientation<em>MPU6050</em></div><div class="val"><span id="tilt">--</span></div><div class="rg"></div></div>
+          <span id="tilt" hidden></span>
         </div>
-        <canvas id="ppg" class="mini" width="560" height="112"></canvas>
+        <canvas id="ppg" class="mini" width="560" height="112" hidden></canvas>
       </div>
-      <div class="card">
-        <div class="ct"><span>Radio link</span><i>glove to base, ESP-NOW</i></div>
+      <div class="card" id="link-card">
+        <div class="ct"><span>Radio link</span><i>ESP-NOW</i></div>
         <div class="rows">
-          <div class="row"><div class="nm">Signal strength</div><div class="val"><b id="v-rssi">--</b>dBm</div><div class="rg">above -80</div></div>
           <div class="row"><div class="nm">Round trip delay</div><div class="val"><b id="v-rtt">--</b>ms</div><div class="rg">alert above 50</div></div>
           <div class="row"><div class="nm">Packet loss</div><div class="val"><b id="v-loss">--</b>%</div><div class="rg">below 5</div></div>
         </div>
-        <canvas id="net" class="mini" width="560" height="124"></canvas>
+        <canvas id="net" class="mini" width="560" height="124" hidden></canvas>
+      </div>
+      <div class="card" id="chk-card" hidden>
+        <div class="ct"><span>Sensor check</span><i id="chk-sum">0 of 6 working</i></div>
+        <div class="rows">
+          <div class="row"><div class="nm">MPU6050<em>tilt or shake the glove</em></div><small class="cs" id="c-mpu">waiting</small></div>
+          <div class="row"><div class="nm">MAX30102<em>put a finger on the sensor</em></div><small class="cs" id="c-max">waiting</small></div>
+          <div class="row"><div class="nm">DHT11<em>temperature and humidity</em></div><small class="cs" id="c-dht">waiting</small></div>
+          <div class="row"><div class="nm">MQ-2<em>hold an alcohol swab near it</em></div><small class="cs" id="c-mq2">waiting</small></div>
+          <div class="row"><div class="nm">MQ-7<em>hold an alcohol swab near it</em></div><small class="cs" id="c-mq7">waiting</small></div>
+          <div class="row"><div class="nm">Panic button<em>press the button</em></div><small class="cs" id="c-btn">waiting</small></div>
+        </div>
       </div>
     </div>
 
@@ -207,10 +227,10 @@
         <canvas id="fx"></canvas>
         <div id="srcs" style="position:absolute;inset:0;pointer-events:none"></div>
         <svg id="lines" aria-hidden="true"><line id="l0"/><line id="l1"/><line id="l2"/><line id="l3"/><circle id="c0" r="3"/><circle id="c1" r="3"/><circle id="c2" r="3"/><circle id="c3" r="3"/></svg>
-        <div class="tag" id="t0"><b>MAX30102 pulse</b><span id="tv0">--</span></div>
-        <div class="tag" id="t1"><b>MQ-2 gas</b><span id="tv1">--</span></div>
-        <div class="tag" id="t2"><b>MQ-7 gas</b><span id="tv2">--</span></div>
-        <div class="tag" id="t3"><b>MPU6050 motion</b><span id="tv3">--</span></div>
+        <div class="tag" id="t0"><b>MAX30102</b><span id="tv0">--</span></div>
+        <div class="tag" id="t1"><b>MQ-2</b><span id="tv1">--</span></div>
+        <div class="tag" id="t2"><b>MQ-7</b><span id="tv2">--</span></div>
+        <div class="tag" id="t3"><b>MPU6050</b><span id="tv3">--</span></div>
         <div id="banner" class="banner"><span id="banner-t">ALL NORMAL</span><small id="banner-s">Simulated data</small></div>
         <div id="hand-msg" hidden>The 3D hand needs WebGL. Open this page in a recent Chrome or Edge.</div>
         <div class="actbar" id="env-card"><span>Activity</span><span class="seg" id="act" role="group" aria-label="Activity"><button type="button" data-act="rest" aria-pressed="true">Rest</button><button type="button" data-act="walk" aria-pressed="false">Walk</button><button type="button" data-act="run" aria-pressed="false">Run</button></span><input id="vent" type="hidden" value="20"><b id="vent-v" hidden>20%</b></div>
@@ -220,18 +240,18 @@
 
     <div class="col">
       <div class="card">
-        <div class="ct"><span>Gas analysis</span><i>ratio to clean air</i></div>
+        <div class="ct"><span>Gas</span><i>ratio to clean air</i></div>
         <span class="gcls" id="gcls">Clean air</span>
-        <div class="meter"><div class="mh"><span>MQ-2<em>smoke, LPG, combustible</em></span><b id="v-ra">1.00</b></div><div class="track"><div class="fill" id="f-ra"></div><div class="mark" id="m-ra"></div></div></div>
-        <div class="meter"><div class="mh"><span>MQ-7<em>carbon monoxide</em></span><b id="v-rb">1.00</b></div><div class="track"><div class="fill" id="f-rb"></div><div class="mark" id="m-rb"></div></div></div>
-        <div class="legend">Red mark: alert level 1.5 times clean air</div>
+        <div class="meter"><div class="mh"><span>MQ-2 smoke and gas</span><b id="v-ra">1.00</b></div><div class="track"><div class="fill" id="f-ra"></div><div class="mark" id="m-ra"></div></div></div>
+        <div class="meter"><div class="mh"><span>MQ-7 CO response</span><b id="v-rb">1.00</b></div><div class="track"><div class="fill" id="f-rb"></div><div class="mark" id="m-rb"></div></div></div>
+        
       </div>
       <div class="card">
-        <div class="ct"><span>Alerts</span><i>rule that raises each one</i></div>
-        <div class="pill" id="p-fall"><span class="an">Fall<em>free fall, impact, then still for 3 s</em></span><small>OK</small></div>
-        <div class="pill" id="p-panic"><span class="an">Panic<em>push button on the glove</em></span><small>OK</small></div>
-        <div class="pill" id="p-gas"><span class="an">Gas<em>either sensor above 1.5 times</em></span><small>OK</small></div>
-        <div class="pill" id="p-hr"><span class="an">Heart rate<em>above 100 bpm while still</em></span><small>OK</small></div>
+        <div class="ct"><span>Alerts</span></div>
+        <div class="pill" id="p-fall"><span class="an">Fall</span><small>OK</small></div>
+        <div class="pill" id="p-panic"><span class="an">Panic</span><small>OK</small></div>
+        <div class="pill" id="p-gas"><span class="an">Gas</span><small>OK</small></div>
+        <div class="pill" id="p-hr"><span class="an">Heart rate</span><small>OK</small></div>
       </div>
     </div>
   </section>
@@ -258,7 +278,7 @@
       <div style="display:flex;gap:8px;margin-top:8px"><button class="btn primary" type="button" id="demo" style="flex:1;height:30px">Run full test</button><button class="btn" type="button" id="clear-gas" style="height:30px">Remove gases</button></div>
       <div class="res" id="res">Click a gas or event to test it.</div>
     </div>
-    <div class="card">
+    <div class="card" id="res-card">
       <div class="ct"><span>Test results</span><i id="res-sum">no tests run</i></div>
       <div class="tw"><table><thead><tr><th>Situation</th><th>Detected</th><th>Delay</th><th>Result</th></tr></thead><tbody id="res-body"></tbody></table></div>
     </div>
@@ -277,14 +297,14 @@
   const GAS_NAMES = ['Clean air', 'Smoke', 'Alcohol vapour', 'Combustible gas', 'Not classified'];
   const GAS_COL = ['#1c8a4b', '#7f8c99', '#a15be0', '#ff8a2a', '#587089'];
   const LABELS = ['clean','smoke','alcohol','combustible','fall','walk','run','sit','wave','jump','high_hr','panic','weak_link'];
-  const CSV_COLS = ['seq','t_ms','raw_a','raw_b','r_a','r_b','temp','hum','hr','spo2','acc','pitch','roll','flags','gas_class','rtt_ms','user','lat','lon','rssi','lost'];
+  const CSV_HEAD = 'time_s,source,session,label,mq2_ratio,mq7_ratio,temp_c,humidity_pct,heart_rate_bpm,spo2_pct,accel_g,pitch_deg,roll_deg,gas_class,fall_alert,panic_alert,gas_alert,hr_alert,delay_ms';
   const noise = a => (Math.random() - 0.5) * 2 * a;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const fx = (v, n) => (v == null || isNaN(v)) ? '--' : v.toFixed(n);
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const dark = () => document.documentElement.getAttribute('data-theme') === 'dark';
 
-  LABELS.forEach(l => { const o = document.createElement('option'); o.value = l; o.textContent = 'Live label: ' + l; $('r-label').appendChild(o); });
+  LABELS.forEach(l => { const o = document.createElement('option'); o.value = l; o.textContent = l; $('r-label').appendChild(o); });
 
   /* ================= state ================= */
   let mode = 'sim';
@@ -327,7 +347,7 @@
     const alertG = S.gas >= 1 && S.gas <= 3; g.style.color = alertG ? c : ''; g.style.background = alertG ? c + '24' : '';
     $('v-rtt').textContent = S.rtt > 0 ? fx(S.rtt, 0) : '--';
     const tot = S.got + S.lost; $('v-loss').textContent = tot > 0 ? (S.lost / tot * 100).toFixed(1) : '--';
-    $('tilt').textContent = 'pitch ' + Math.round(S.pitch) + '°, roll ' + Math.round(S.roll) + '°'; $('v-acc').textContent = S.has ? fx(S.acc, 2) : '--'; $('v-rssi').textContent = (S.rssi != null && S.has && S.rssi !== '') ? Math.round(S.rssi) : '--';
+    $('tilt').textContent = 'pitch ' + Math.round(S.pitch) + '°, roll ' + Math.round(S.roll) + '°'; $('v-acc').textContent = S.has ? fx(S.acc, 2) : '--';
     $('tv0').textContent = finger && S.hr > 0 ? Math.round(S.hr) + ' bpm · ' + Math.round(S.spo2) + '%' : '--';
     $('tv1').textContent = fx(S.rA, 2) + ' x'; $('tv2').textContent = fx(S.rB, 2) + ' x'; $('tv3').textContent = fx(S.acc, 1) + ' g';
 
@@ -342,7 +362,7 @@
     else if (gasAl){ b.className = 'banner warn'; bt.textContent = 'GAS ALERT' + (gasNow ? ': ' + GAS_NAMES[S.gas].toUpperCase() : ''); }
     else if (hrAl){ b.className = 'banner warn'; bt.textContent = 'HEART RATE ABOVE BASELINE'; }
     else { b.className = 'banner'; bt.textContent = S.has ? 'ALL NORMAL' : 'WAITING FOR DATA'; }
-    $('banner-s').textContent = mode === 'sim' ? 'Simulated data' : 'Live data';
+    $('banner-s').textContent = mode === 'sim' ? (paused ? 'Simulation stopped' : 'Simulated data') : (S.has ? 'Live data' : 'Press Connect, or Test lines to try the page');
   }
   setInterval(() => {
     if (!S.has){ $('age').textContent = 'no data yet'; return; }
@@ -351,7 +371,27 @@
     if (mode === 'live'){ const c = $('chip'); if (s > 5){ c.className = 'chip wait'; c.textContent = 'Live, waiting for data'; } else { c.className = 'chip live'; c.textContent = 'Live'; } }
   }, 1000);
 
+  const CK = ['mpu', 'max', 'dht', 'mq2', 'mq7', 'btn'];
+  let chk = {}, chkN = 0, chkBase = null, pr = null;
+  function chkReset(){ chk = {}; chkN = 0; chkBase = null; pr = null; chkPaint(); }
+  function chkPaint(){
+    let n = 0; CK.forEach(k => { const el = $('c-' + k), ok = !!chk[k]; if (ok) n++; el.textContent = ok ? 'working' : 'waiting'; el.className = 'cs' + (ok ? ' ok' : ''); });
+    $('chk-sum').textContent = n + ' of 6 working';
+  }
+  function chkUpdate(p){
+    chkN++; if (chkN <= 8){ chkBase = chkBase || { a:0, b:0 }; chkBase.a += p.rA / 8; chkBase.b += p.rB / 8; }
+    pr = pr || { p0:p.pitch, p1:p.pitch, r0:p.roll, r1:p.roll };
+    pr.p0 = Math.min(pr.p0, p.pitch); pr.p1 = Math.max(pr.p1, p.pitch); pr.r0 = Math.min(pr.r0, p.roll); pr.r1 = Math.max(pr.r1, p.roll);
+    if (Math.max(pr.p1 - pr.p0, pr.r1 - pr.r0) > 20) chk.mpu = true;
+    if ((p.flags & 8) && p.hr > 40 && p.hr < 180) chk.max = true;
+    if (p.temp > 5 && p.temp < 50 && p.hum > 10 && p.hum < 95) chk.dht = true;
+    if (chkN > 8 && p.rA - chkBase.a > 0.25) chk.mq2 = true;
+    if (chkN > 8 && p.rB - chkBase.b > 0.25) chk.mq7 = true;
+    if (p.flags & 2) chk.btn = true;
+    chkPaint();
+  }
   function ingest(p){
+    if (mode === 'live') chkUpdate(p);
     netPing(p);
     Object.assign(S, { seq:p.seq, hr:p.hr, spo2:p.spo2, temp:p.temp, hum:p.hum, pitch:p.pitch, roll:p.roll, acc:p.acc, flags:p.flags, gas:p.gas, rA:p.rA, rB:p.rB, rtt:p.rtt, lost:p.lost });
     if (p.acc > S.peak) S.peak = p.acc;
@@ -438,7 +478,7 @@
   function setPaused(p){
     paused = p; $('stop').textContent = p ? 'Start simulation' : 'Stop simulation'; $('stop').setAttribute('aria-pressed', String(p));
     if (p){ demoT.forEach(clearTimeout); demoT = []; cur = null; }
-    if (mode === 'sim'){ const c = $('chip'); c.className = 'chip' + (p ? ' wait' : ''); c.textContent = p ? 'Simulation stopped' : 'Simulation'; c.hidden = !p; logEv('INFO', p ? 'warn' : 'ok', p ? 'Simulation stopped' : 'Simulation running'); }
+    if (mode === 'sim'){ const c = $('chip'); c.className = 'chip' + (p ? ' wait' : ''); c.textContent = p ? 'Simulation stopped' : 'Simulation'; c.hidden = !p; logEv('INFO', p ? 'warn' : 'ok', p ? 'Simulation stopped' : 'Simulation running');  paint(); }
   }
   $('stop').addEventListener('click', () => { if (mode === 'sim') setPaused(!paused); });
   $('reset').addEventListener('click', () => {
@@ -568,7 +608,7 @@
   function setMode(m){
     mode = m;
     $('m-sim').setAttribute('aria-pressed', String(m === 'sim')); $('m-live').setAttribute('aria-pressed', String(m === 'live'));
-    $('connect').hidden = (m !== 'live'); $('selftest').hidden = (m !== 'live'); if (m !== 'live' && selfT){ clearInterval(selfT); selfT = null; $('selftest').textContent = 'Send test lines'; } $('sim-card').hidden = (m !== 'sim'); $('env-card').hidden = (m !== 'sim'); $('stop').hidden = $('reset').hidden = (m !== 'sim'); $('r-label').hidden = (m !== 'live'); clearSources();
+    $('connect').hidden = (m !== 'live'); $('selftest').hidden = (m !== 'live'); if (m !== 'live' && selfT){ clearInterval(selfT); selfT = null; $('selftest').textContent = 'Test lines'; } $('sim-card').hidden = (m !== 'sim'); $('res-card').hidden = (m !== 'sim'); $('link-card').hidden = (m !== 'sim'); $('chk-card').hidden = (m !== 'live'); chkReset(); $('env-card').hidden = (m !== 'sim'); $('stop').hidden = $('reset').hidden = (m !== 'sim'); $('r-label').hidden = (m !== 'live'); clearSources();
     $('hint').textContent = m === 'sim' ? 'drag to tilt the hand' : 'drag to turn the view';
     const chip = $('chip'); if (m === 'sim'){ chip.className = 'chip'; chip.textContent = 'Simulation'; chip.hidden = true; $('notice').hidden = true; } else { chip.hidden = false; chip.className = 'chip wait'; chip.textContent = 'Live, not connected'; const n = $('notice'); n.hidden = false; n.textContent = 'Live mode: plug the base ESP32 into this laptop with USB, press Connect base station and choose its COM port. No hardware yet? Press Send test lines to feed the page through the same serial parser.'; }
     Object.assign(S, { has:false, got:0, lost:0, flags:0, gas:0, hr:0, spo2:0, rA:1, rB:1, rtt:0, peak:1 }); prevFlags = 0; prevGas = 0; cur = null;
@@ -605,9 +645,9 @@
 
   let selfT = null, selfN = 0, selfObj = null;
   $('selftest').addEventListener('click', () => {
-    if (selfT){ clearInterval(selfT); selfT = null; $('selftest').textContent = 'Send test lines'; return; }
+    if (selfT){ clearInterval(selfT); selfT = null; $('selftest').textContent = 'Test lines'; return; }
     selfObj = { t:0, seq:0, hr:72, rA:1, rB:1, exert:0, fall:0, panic:0, weak:0, hrHigh:0, lost:0, pitch:0, roll:0, dom:0 }; selfN = 0;
-    $('selftest').textContent = 'Stop test lines'; $('notice').hidden = true;
+    $('selftest').textContent = 'Stop test'; $('notice').hidden = true;
     selfT = setInterval(() => {
       if (mode !== 'live') return;
       selfN++; const k = selfN % 100;
@@ -622,9 +662,10 @@
   /* ================= dataset recording (simulation and live) ================= */
   const rec = { rows:[], session:1 }, MAXROWS = 40000;
   function recordRow(p){
-    const v = [p.seq, p.t_ms === undefined ? '' : p.t_ms, p.raw ? p.raw[0] : '', p.raw ? p.raw[1] : '', p.rA.toFixed(3), p.rB.toFixed(3), p.temp.toFixed(1), p.hum.toFixed(1), p.hr.toFixed(1), p.spo2.toFixed(1), p.acc.toFixed(2),
-               p.pitch.toFixed(1), p.roll.toFixed(1), p.flags, p.gas, p.rtt.toFixed(0), '"' + (p.user || '') + '"', p.lat === undefined ? '' : p.lat, p.lon === undefined ? '' : p.lon, p.rssi === undefined ? '' : p.rssi, p.lost];
-    rec.rows.push(new Date().toISOString() + ',' + mode + ',' + rec.session + ',' + (p.label || 'clean') + ',' + v.join(','));
+    const t = parseFloat(p.t_ms), f = p.flags | 0;
+    rec.rows.push([isNaN(t) ? '' : (t / 1000).toFixed(1), mode === 'sim' ? 'simulation' : 'live', rec.session, p.label || 'clean',
+      p.rA.toFixed(3), p.rB.toFixed(3), p.temp.toFixed(1), p.hum.toFixed(1), p.hr.toFixed(1), p.spo2.toFixed(1), p.acc.toFixed(2), p.pitch.toFixed(1), p.roll.toFixed(1),
+      GAS_KEY[p.gas] || 'unclassified', f & 1 ? 1 : 0, f & 2 ? 1 : 0, f & 16 ? 1 : 0, f & 4 ? 1 : 0, p.rtt.toFixed(0)].join(','));
     if (rec.rows.length > MAXROWS) rec.rows.shift();
     $('r-count').textContent = rec.rows.length + ' rows'; $('r-dl').disabled = false; $('r-clear').disabled = false;
   }
@@ -634,7 +675,7 @@
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
   }
   $('r-dl').addEventListener('click', () => {
-    download('shield-x-dataset.csv', 'pc_time,source,session,label,' + CSV_COLS.join(',') + '\n' + rec.rows.join('\n'));
+    download('shield-x-dataset.csv', CSV_HEAD + '\n' + rec.rows.join('\n'));
     if (results.length) setTimeout(() => download('shield-x-test-results.csv', 'situation,expected,detected,delay_s,result\n' + results.slice().reverse().map(r => [r.name, SC[Object.keys(SC).find(k => SC[k].name === r.name)].exp, r.det, r.ok ? r.secs.toFixed(2) : '', r.ok ? 'PASS' : 'FAIL'].map(x => '"' + String(x).replace(/"/g, '""') + '"').join(',')).join('\n')), 400);
   });
 
@@ -911,7 +952,7 @@
   /* ================= theme ================= */
   function setTheme(d){
     if (d) document.documentElement.setAttribute('data-theme', 'dark'); else document.documentElement.removeAttribute('data-theme');
-    $('theme').setAttribute('aria-pressed', String(d)); $('theme').textContent = d ? 'Light view' : 'Hologram view';
+    $('theme').setAttribute('aria-pressed', String(d)); $('theme').textContent = d ? 'Light' : 'Hologram';
     try { localStorage.setItem('shieldx-theme', d ? 'dark' : 'light'); } catch (e) {}
     themeHand(); chart(); paint();
   }
