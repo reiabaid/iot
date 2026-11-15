@@ -1,0 +1,11 @@
+task,model,accuracy,precision,recall,f1,ms_per_row
+gas,Threshold rule,0.9566,0.8982,0.9540,0.9165,0.0010
+gas,Decision tree,0.9592,0.8988,0.9676,0.9268,0.0004
+gas,Random forest,0.9566,0.9064,0.9508,0.9213,0.0095
+gas,SVM (RBF),0.9341,0.8559,0.9316,0.8851,0.1809
+gas,kNN (k=5),0.8803,0.8935,0.7686,0.7428,0.0056
+activity,Threshold rule,0.9892,0.6648,0.5909,0.6167,0.0004
+activity,Decision tree,0.9892,0.6333,0.6053,0.6187,0.0007
+activity,Random forest,0.9849,0.6250,0.5750,0.5969,0.0143
+activity,SVM (RBF),0.9655,0.5056,0.6306,0.5229,0.0370
+activity,kNN (k=5),0.9763,0.6389,0.5496,0.5797,0.0084

@@ -164,6 +164,8 @@
   #chk-card .nm em{ display:block; font-size:11px; } #chk-card .row{ min-height:30px; padding:2px 0; } #chk-card .nm{ font-size:13px; }
   .cs{ font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:12px; background:var(--soft); color:var(--dim); white-space:nowrap; }
   .cs.ok{ background:var(--okbg); color:var(--ok); }
+  .btns{ grid-template-columns:repeat(3,minmax(0,1fr)); } .rows .row{ min-height:32px; }
+  @media (max-height:820px) and (min-width:981px){ .pill{ min-height:30px; padding:2px 0; } .card{ padding:11px 14px; } .ct{ margin-bottom:6px; } .rows .row{ min-height:29px; padding:2px 0; } .meter{ margin-top:6px; } }
 </style>
 </head>
 <body>
@@ -199,14 +201,6 @@
           <span id="tilt" hidden></span>
         </div>
         <canvas id="ppg" class="mini" width="560" height="112" hidden></canvas>
-      </div>
-      <div class="card" id="link-card">
-        <div class="ct"><span>Radio link</span><i>ESP-NOW</i></div>
-        <div class="rows">
-          <div class="row"><div class="nm">Round trip delay</div><div class="val"><b id="v-rtt">--</b>ms</div><div class="rg">alert above 50</div></div>
-          <div class="row"><div class="nm">Packet loss</div><div class="val"><b id="v-loss">--</b>%</div><div class="rg">below 5</div></div>
-        </div>
-        <canvas id="net" class="mini" width="560" height="124" hidden></canvas>
       </div>
       <div class="card" id="chk-card" hidden>
         <div class="ct"><span>Sensor check</span><i id="chk-sum">0 of 6 working</i></div>
@@ -253,6 +247,14 @@
         <div class="pill" id="p-gas"><span class="an">Gas</span><small>OK</small></div>
         <div class="pill" id="p-hr"><span class="an">Heart rate</span><small>OK</small></div>
       </div>
+      <div class="card" id="link-card">
+        <div class="ct"><span>Radio link</span><i>ESP-NOW</i></div>
+        <div class="rows">
+          <div class="row"><div class="nm">Round trip delay</div><div class="val"><b id="v-rtt">--</b>ms</div><div class="rg">alert above 50</div></div>
+          <div class="row"><div class="nm">Packet loss</div><div class="val"><b id="v-loss">--</b>%</div><div class="rg">below 5</div></div>
+        </div>
+        <canvas id="net" class="mini" width="560" height="124" hidden></canvas>
+      </div>
     </div>
   </section>
 
@@ -273,7 +275,6 @@
         <button class="btn" type="button" data-sc="fall">Fall</button>
         <button class="btn" type="button" data-sc="hr">High HR</button>
         <button class="btn" type="button" data-sc="panic">Panic</button>
-        <button class="btn" type="button" data-sc="link">Weak link</button>
       </div>
       <div style="display:flex;gap:8px;margin-top:8px"><button class="btn primary" type="button" id="demo" style="flex:1;height:30px">Run full test</button><button class="btn" type="button" id="clear-gas" style="height:30px">Remove gases</button></div>
       <div class="res" id="res">Click a gas or event to test it.</div>
@@ -289,6 +290,7 @@
 <footer>Live line: D,seq,t_ms,raw_a,raw_b,r_a,r_b,temp,hum,hr,spo2,acc,pitch,roll,flags,gas_class,rtt_ms,user,lat,lon,rssi,lost</footer>
 
 <script src="three/three.min.js"></script>
+<script src="models.js"></script>
 <script>
 (function(){
   'use strict';
@@ -349,7 +351,7 @@
     const tot = S.got + S.lost; $('v-loss').textContent = tot > 0 ? (S.lost / tot * 100).toFixed(1) : '--';
     $('tilt').textContent = 'pitch ' + Math.round(S.pitch) + '°, roll ' + Math.round(S.roll) + '°'; $('v-acc').textContent = S.has ? fx(S.acc, 2) : '--';
     $('tv0').textContent = finger && S.hr > 0 ? Math.round(S.hr) + ' bpm · ' + Math.round(S.spo2) + '%' : '--';
-    $('tv1').textContent = fx(S.rA, 2) + ' x'; $('tv2').textContent = fx(S.rB, 2) + ' x'; $('tv3').textContent = fx(S.acc, 1) + ' g';
+    $('tv1').textContent = fx(S.rA, 2) + ' x'; $('tv2').textContent = fx(S.rB, 2) + ' x'; $('tv3').textContent = fx(S.acc, 1) + ' g' + (MD && S.act ? ' · ' + S.act : '');
 
     const fall = f & 1, panic = f & 2, gasNow = S.gas >= 1 && S.gas <= 3, gasAl = (f & 16) || gasNow, hrAl = f & 4;
     pill('p-fall', fall ? 'crit' : '', fall ? 'DETECTED' : 'OK');
@@ -362,7 +364,7 @@
     else if (gasAl){ b.className = 'banner warn'; bt.textContent = 'GAS ALERT' + (gasNow ? ': ' + GAS_NAMES[S.gas].toUpperCase() : ''); }
     else if (hrAl){ b.className = 'banner warn'; bt.textContent = 'HEART RATE ABOVE BASELINE'; }
     else { b.className = 'banner'; bt.textContent = S.has ? 'ALL NORMAL' : 'WAITING FOR DATA'; }
-    $('banner-s').textContent = mode === 'sim' ? (paused ? 'Simulation stopped' : 'Simulated data') : (S.has ? 'Live data' : 'Press Connect, or Test lines to try the page');
+    $('banner-s').textContent = mode === 'sim' ? (paused ? 'Simulation stopped' : 'Simulated data' + (MD ? ' · ML model' : '')) : (S.has ? 'Live data' + (MD ? ' · ML model' : '') : 'Press Connect, or Test lines to try the page');
   }
   setInterval(() => {
     if (!S.has){ $('age').textContent = 'no data yet'; return; }
@@ -373,7 +375,7 @@
 
   const CK = ['mpu', 'max', 'dht', 'mq2', 'mq7', 'btn'];
   let chk = {}, chkN = 0, chkBase = null, pr = null;
-  function chkReset(){ chk = {}; chkN = 0; chkBase = null; pr = null; chkPaint(); }
+  function chkReset(){ actBuf.length = 0; S.act = ''; chk = {}; chkN = 0; chkBase = null; pr = null; chkPaint(); }
   function chkPaint(){
     let n = 0; CK.forEach(k => { const el = $('c-' + k), ok = !!chk[k]; if (ok) n++; el.textContent = ok ? 'working' : 'waiting'; el.className = 'cs' + (ok ? ' ok' : ''); });
     $('chk-sum').textContent = n + ' of 6 working';
@@ -390,7 +392,23 @@
     if (p.flags & 2) chk.btn = true;
     chkPaint();
   }
+  /* ---- trained decision trees (tools/train_models.py writes models.js) ---- */
+  const MD = window.SHIELD_MODELS || null, actBuf = [];
+  const ACT_SHOW = { fall:'fall', walk:'walking', run:'running', sit:'resting', wave:'waving', jump:'jumping' };
+  function treePredict(m, x){ let i = 0; for (;;){ const n = m.nodes[i]; if (n.c !== undefined) return m.classes[n.c]; i = x[n.f] <= n.t ? n.l : n.r; } }
+  function mlPredict(p){
+    if (!MD) return;
+    const gi = ['clean', 'smoke', 'alcohol', 'combustible'].indexOf(treePredict(MD.gas, [p.rA, p.rB, (p.rA - 1) / Math.max(p.rB - 1, 0.05), p.temp, p.hum]));
+    if (gi >= 0) p.gas = gi;
+    actBuf.push([p.acc, p.pitch, p.roll]); if (actBuf.length > MD.meta.window) actBuf.shift();
+    if (actBuf.length === MD.meta.window){
+      const col = i => actBuf.map(r => r[i]), mean = a => a.reduce((x, y) => x + y, 0) / a.length, sd = a => { const m = mean(a); return Math.sqrt(mean(a.map(v => (v - m) * (v - m)))); };
+      const a = col(0), pi = col(1), ro = col(2);
+      S.act = ACT_SHOW[treePredict(MD.activity, [mean(a), sd(a), Math.min.apply(null, a), Math.max.apply(null, a), sd(pi), sd(ro)])] || '';
+    }
+  }
   function ingest(p){
+    mlPredict(p);
     if (mode === 'live') chkUpdate(p);
     netPing(p);
     Object.assign(S, { seq:p.seq, hr:p.hr, spo2:p.spo2, temp:p.temp, hum:p.hum, pitch:p.pitch, roll:p.roll, acc:p.acc, flags:p.flags, gas:p.gas, rA:p.rA, rB:p.rB, rtt:p.rtt, lost:p.lost });
@@ -409,7 +427,7 @@
     }
     prevFlags = p.flags;
     recordRow(p);
-    checkScenario(p);
+    checkScenario(p); checkGasTests(p);
     paint();
   }
 
@@ -423,8 +441,8 @@
   let gloveXY = null, stageSz = { w:800, h:500 }, sid = 0;
   const vent = () => 1 - 0.7 * ($('vent').value / 100);
   function conc(s){
-    if (!gloveXY) return 0;
-    const d0 = 0.2 * Math.max(stageSz.w, 300), d = Math.hypot(s.x - gloveXY.x, s.y - gloveXY.y);
+    const g = gloveXY || { x:stageSz.w / 2, y:stageSz.h * 0.55 };
+    const d0 = 0.2 * Math.max(stageSz.w, 300), d = Math.hypot(s.x - g.x, s.y - g.y);
     return 1 / (1 + Math.pow(d / d0, 2));
   }
   function exposure(){
@@ -508,7 +526,7 @@
     const core = el.querySelector('.core');
     core.addEventListener('pointerdown', e => { e.preventDefault(); try { core.setPointerCapture(e.pointerId); } catch (x) {} s.drag = true; });
     core.addEventListener('pointermove', e => { if (!s.drag) return; const p = stageXY(e); s.x = clamp(p.x, 12, stageSz.w - 12); s.y = clamp(p.y, 12, stageSz.h - 12); s.out = !p.inside; core.style.opacity = s.out ? 0.35 : 1; placeSource(s); updateSources(); });
-    core.addEventListener('pointerup', () => { s.drag = false; if (s.out) removeSource(s); });
+    core.addEventListener('pointerup', () => { s.drag = false; if (s.out) removeSource(s); else startGasTest(s); });
     core.addEventListener('dblclick', () => removeSource(s));
     updateSources(); return s;
   }
@@ -535,7 +553,7 @@
     });
     chip.addEventListener('pointerup', () => {
       if (!st) return;
-      if (st.s){ st.s.drag = false; if (st.s.out) removeSource(st.s); else logEv('GAS', '', GNAME[st.s.type].toLowerCase() + ' source placed'); }
+      if (st.s){ st.s.drag = false; if (st.s.out) removeSource(st.s); else { logEv('GAS', '', GNAME[st.s.type].toLowerCase() + ' source placed'); startGasTest(st.s); } }
       else runScenario(TYPE_SC[+chip.dataset.type]);
       st = null;
     });
@@ -561,7 +579,7 @@
   }
   function finish(ok, text, secs){
     const s = SC[cur.key];
-    results.unshift({ name:s.name, det:text, secs, ok });
+    results.unshift({ name:s.name, det:text, secs, ok, exp:s.exp });
     $('res').className = 'res ' + (ok ? 'pass' : 'fail');
     $('res').innerHTML = '<b>' + s.name + '</b><span class="badge ' + (ok ? 'pass' : 'fail') + '">' + (ok ? 'PASS' : 'FAIL') + '</span> ' + text + (ok ? ' in <b>' + secs.toFixed(1) + ' s</b>' : '');
     renderResults(); cur = null;
@@ -571,6 +589,19 @@
     const s = SC[cur.key], dt = (Date.now() - cur.t0) / 1000;
     if (dt > 0.4 && s.hit(p)) finish(true, s.val(p), dt);
     else if (dt > 25) finish(false, 'not detected', dt);
+  }
+  /* gases placed by drag and drop are tested too: the result shows how strong the gas was at the glove */
+  const gasTests = [];
+  function startGasTest(src){ const i = gasTests.findIndex(t => t.s === src); if (i >= 0) gasTests.splice(i, 1); gasTests.push({ s:src, t0:Date.now() }); }
+  function checkGasTests(p){
+    if (mode !== 'sim') return;
+    for (let i = gasTests.length - 1; i >= 0; i--){
+      const t = gasTests[i], src = t.s, dt = (Date.now() - t.t0) / 1000, pc = Math.round(src.c * 100);
+      if (sources.indexOf(src) < 0){ gasTests.splice(i, 1); continue; }
+      const name = GAS_NAMES[src.type] + ' (' + pc + ' % at glove)', exp = GAS_NAMES[src.type] + ' alert';
+      if (p.gas === src.type && dt > 0.4){ results.unshift({ name, det:GAS_NAMES[src.type] + ', MQ-2 ' + p.rA.toFixed(2) + ' x, MQ-7 ' + p.rB.toFixed(2) + ' x', secs:dt, ok:true, exp }); gasTests.splice(i, 1); renderResults(); }
+      else if (dt > 20){ results.unshift({ name, det:(p.gas >= 1 && p.gas <= 3) ? 'wrong class: ' + GAS_NAMES[p.gas] : 'too weak, not detected', secs:dt, ok:false, exp }); gasTests.splice(i, 1); renderResults(); }
+    }
   }
   function renderResults(){
     const tb = $('res-body'); tb.innerHTML = '';
@@ -599,8 +630,7 @@
     at(58, () => runScenario('fall'));
     at(72, () => runScenario('hr'));
     at(98, () => runScenario('panic'));
-    at(106, () => runScenario('link'));
-    at(122, () => { const ok = results.filter(r => r.ok).length; logEv('TEST', ok === results.length ? 'ok' : 'crit', 'Full test finished: ' + ok + ' of ' + results.length + ' situations detected'); });
+    at(108, () => { const ok = results.filter(r => r.ok).length; logEv('TEST', ok === results.length ? 'ok' : 'crit', 'Full test finished: ' + ok + ' of ' + results.length + ' situations detected'); });
   });
 
   /* ================= live mode ================= */
@@ -608,7 +638,7 @@
   function setMode(m){
     mode = m;
     $('m-sim').setAttribute('aria-pressed', String(m === 'sim')); $('m-live').setAttribute('aria-pressed', String(m === 'live'));
-    $('connect').hidden = (m !== 'live'); $('selftest').hidden = (m !== 'live'); if (m !== 'live' && selfT){ clearInterval(selfT); selfT = null; $('selftest').textContent = 'Test lines'; } $('sim-card').hidden = (m !== 'sim'); $('res-card').hidden = (m !== 'sim'); $('link-card').hidden = (m !== 'sim'); $('chk-card').hidden = (m !== 'live'); chkReset(); $('env-card').hidden = (m !== 'sim'); $('stop').hidden = $('reset').hidden = (m !== 'sim'); $('r-label').hidden = (m !== 'live'); clearSources();
+    $('connect').hidden = (m !== 'live'); $('selftest').hidden = (m !== 'live'); if (m !== 'live' && selfT){ clearInterval(selfT); selfT = null; $('selftest').textContent = 'Test lines'; } $('sim-card').hidden = (m !== 'sim'); $('res-card').hidden = (m !== 'sim'); $('link-card').hidden = (m !== 'live'); $('chk-card').hidden = (m !== 'live'); chkReset(); $('env-card').hidden = (m !== 'sim'); $('stop').hidden = $('reset').hidden = (m !== 'sim'); $('r-label').hidden = (m !== 'live'); clearSources();
     $('hint').textContent = m === 'sim' ? 'drag to tilt the hand' : 'drag to turn the view';
     const chip = $('chip'); if (m === 'sim'){ chip.className = 'chip'; chip.textContent = 'Simulation'; chip.hidden = true; $('notice').hidden = true; } else { chip.hidden = false; chip.className = 'chip wait'; chip.textContent = 'Live, not connected'; const n = $('notice'); n.hidden = false; n.textContent = 'Live mode: plug the base ESP32 into this laptop with USB, press Connect base station and choose its COM port. No hardware yet? Press Send test lines to feed the page through the same serial parser.'; }
     Object.assign(S, { has:false, got:0, lost:0, flags:0, gas:0, hr:0, spo2:0, rA:1, rB:1, rtt:0, peak:1 }); prevFlags = 0; prevGas = 0; cur = null;
@@ -665,7 +695,7 @@
     const t = parseFloat(p.t_ms), f = p.flags | 0;
     rec.rows.push([isNaN(t) ? '' : (t / 1000).toFixed(1), mode === 'sim' ? 'simulation' : 'live', rec.session, p.label || 'clean',
       p.rA.toFixed(3), p.rB.toFixed(3), p.temp.toFixed(1), p.hum.toFixed(1), p.hr.toFixed(1), p.spo2.toFixed(1), p.acc.toFixed(2), p.pitch.toFixed(1), p.roll.toFixed(1),
-      GAS_KEY[p.gas] || 'unclassified', f & 1 ? 1 : 0, f & 2 ? 1 : 0, f & 16 ? 1 : 0, f & 4 ? 1 : 0, p.rtt.toFixed(0)].join(','));
+      GAS_KEY[p.gas] || 'unclassified', f & 1 ? 1 : 0, f & 2 ? 1 : 0, f & 16 ? 1 : 0, f & 4 ? 1 : 0, mode === 'sim' ? '' : p.rtt.toFixed(0)].join(','));
     if (rec.rows.length > MAXROWS) rec.rows.shift();
     $('r-count').textContent = rec.rows.length + ' rows'; $('r-dl').disabled = false; $('r-clear').disabled = false;
   }
@@ -676,7 +706,7 @@
   }
   $('r-dl').addEventListener('click', () => {
     download('shield-x-dataset.csv', CSV_HEAD + '\n' + rec.rows.join('\n'));
-    if (results.length) setTimeout(() => download('shield-x-test-results.csv', 'situation,expected,detected,delay_s,result\n' + results.slice().reverse().map(r => [r.name, SC[Object.keys(SC).find(k => SC[k].name === r.name)].exp, r.det, r.ok ? r.secs.toFixed(2) : '', r.ok ? 'PASS' : 'FAIL'].map(x => '"' + String(x).replace(/"/g, '""') + '"').join(',')).join('\n')), 400);
+    if (results.length) setTimeout(() => download('shield-x-test-results.csv', 'situation,expected,detected,delay_s,result\n' + results.slice().reverse().map(r => [r.name, (r.exp || ''), r.det, r.ok ? r.secs.toFixed(2) : '', r.ok ? 'PASS' : 'FAIL'].map(x => '"' + String(x).replace(/"/g, '""') + '"').join(',')).join('\n')), 400);
   });
 
   /* ================= 3D hologram hand (three.js) ================= */

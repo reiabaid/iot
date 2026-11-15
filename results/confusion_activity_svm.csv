@@ -1,0 +1,7 @@
+,fall,walk,run,sit,wave,jump
+fall,2,0,0,0,0,0
+walk,0,10,0,0,0,1
+run,0,2,19,0,0,0
+sit,8,0,0,417,5,0
+wave,0,0,0,0,0,0
+jump,0,0,0,0,0,0

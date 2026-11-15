@@ -1,0 +1,5 @@
+,clean,smoke,alcohol,combustible
+clean,800,2,11,24
+smoke,0,115,1,3
+alcohol,0,0,110,6
+combustible,0,0,0,81
