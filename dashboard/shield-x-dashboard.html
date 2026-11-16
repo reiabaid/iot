@@ -153,6 +153,7 @@
     .bottom .card{ height:230px; } #sim-card{ height:auto; }
     .tag{ font-size:10.5px; padding:2px 6px; }
   }
+  @media (min-height:1200px) and (min-width:981px){ .app{ grid-template-rows:auto minmax(0,1fr) 300px; } }
   @media (prefers-reduced-motion:reduce){ .banner.crit,.src .cloud{ animation:none; } }
   .rg{ display:none; } .rows .nm em{ display:none; } .row{ grid-template-columns:minmax(0,1fr) auto; } .row .val{ text-align:right; }
   .pill .an em{ font-size:11px; }
@@ -375,7 +376,11 @@
 
   const CK = ['mpu', 'max', 'dht', 'mq2', 'mq7', 'btn'];
   let chk = {}, chkN = 0, chkBase = null, pr = null;
-  function chkReset(){ actBuf.length = 0; S.act = ''; chk = {}; chkN = 0; chkBase = null; pr = null; chkPaint(); }
+  let liveT0 = 0;
+  function liveResult(name, det, ok){
+    results.unshift({ name, det, secs:(Date.now() - liveT0) / 1000, ok, exp:'' }); renderResults();
+  }
+  function chkReset(){ liveT0 = 0; results.length = 0; renderResults(); actBuf.length = 0; S.act = ''; chk = {}; chkN = 0; chkBase = null; pr = null; chkPaint(); }
   function chkPaint(){
     let n = 0; CK.forEach(k => { const el = $('c-' + k), ok = !!chk[k]; if (ok) n++; el.textContent = ok ? 'working' : 'waiting'; el.className = 'cs' + (ok ? ' ok' : ''); });
     $('chk-sum').textContent = n + ' of 6 working';
@@ -384,12 +389,15 @@
     chkN++; if (chkN <= 8){ chkBase = chkBase || { a:0, b:0 }; chkBase.a += p.rA / 8; chkBase.b += p.rB / 8; }
     pr = pr || { p0:p.pitch, p1:p.pitch, r0:p.roll, r1:p.roll };
     pr.p0 = Math.min(pr.p0, p.pitch); pr.p1 = Math.max(pr.p1, p.pitch); pr.r0 = Math.min(pr.r0, p.roll); pr.r1 = Math.max(pr.r1, p.roll);
-    if (Math.max(pr.p1 - pr.p0, pr.r1 - pr.r0) > 20) chk.mpu = true;
-    if ((p.flags & 8) && p.hr > 40 && p.hr < 180) chk.max = true;
-    if (p.temp > 5 && p.temp < 50 && p.hum > 10 && p.hum < 95) chk.dht = true;
-    if (chkN > 8 && p.rA - chkBase.a > 0.25) chk.mq2 = true;
-    if (chkN > 8 && p.rB - chkBase.b > 0.25) chk.mq7 = true;
-    if (p.flags & 2) chk.btn = true;
+    if (chkN === 1) liveT0 = Date.now();
+    const latch = (k, name, det) => { if (!chk[k]){ chk[k] = true; liveResult(name, det, true); } };
+    const tilt = Math.max(pr.p1 - pr.p0, pr.r1 - pr.r0);
+    if (tilt > 20) latch('mpu', 'MPU6050 sensor', 'Movement seen, tilt ' + tilt.toFixed(0) + '°');
+    if ((p.flags & 8) && p.hr > 40 && p.hr < 180) latch('max', 'MAX30102 sensor', 'Finger found, ' + Math.round(p.hr) + ' bpm, SpO2 ' + Math.round(p.spo2) + '%');
+    if (p.temp > 5 && p.temp < 50 && p.hum > 10 && p.hum < 95) latch('dht', 'DHT11 sensor', p.temp.toFixed(1) + ' °C, ' + Math.round(p.hum) + '% humidity');
+    if (chkN > 8 && p.rA - chkBase.a > 0.25) latch('mq2', 'MQ-2 sensor', 'Response rose to ' + p.rA.toFixed(2) + ' x');
+    if (chkN > 8 && p.rB - chkBase.b > 0.25) latch('mq7', 'MQ-7 sensor', 'Response rose to ' + p.rB.toFixed(2) + ' x');
+    if (p.flags & 2) latch('btn', 'Panic button sensor', 'Button press seen');
     chkPaint();
   }
   /* ---- trained decision trees (tools/train_models.py writes models.js) ---- */
@@ -416,12 +424,13 @@
     S.got++; S.last = Date.now(); S.has = true;
     push(H.hr, p.hr); push(H.ra, p.rA); push(H.rb, p.rB);
     const rose = bit => (p.flags & bit) && !(prevFlags & bit);
-    if (rose(1)) logEv('FALL', 'crit', 'Fall detected, peak ' + S.peak.toFixed(1) + ' g');
-    if (rose(2)) logEv('PANIC', 'crit', 'Panic button pressed');
-    if (rose(4)) logEv('HEART', 'warn', 'Heart rate above baseline: ' + Math.round(p.hr) + ' bpm');
+    const lr = (n, d) => { if (mode === 'live') liveResult(n, d, true); };
+    if (rose(1)){ logEv('FALL', 'crit', 'Fall detected, peak ' + S.peak.toFixed(1) + ' g'); lr('Fall alert', 'Fall, impact ' + S.peak.toFixed(1) + ' g'); }
+    if (rose(2)){ logEv('PANIC', 'crit', 'Panic button pressed'); lr('Panic alert', 'Button pressed'); }
+    if (rose(4)){ logEv('HEART', 'warn', 'Heart rate above baseline: ' + Math.round(p.hr) + ' bpm'); lr('High heart rate alert', Math.round(p.hr) + ' bpm'); }
     if (rose(128)) logEv('ARMED', 'ok', 'Glove armed' + (p.user ? ' for ' + p.user : ''));
     if (p.gas !== prevGas){
-      if (p.gas >= 1 && p.gas <= 3) logEv('GAS', 'warn', GAS_NAMES[p.gas] + ' (MQ-2 ' + p.rA.toFixed(2) + ', MQ-7 ' + p.rB.toFixed(2) + ')');
+      if (p.gas >= 1 && p.gas <= 3){ logEv('GAS', 'warn', GAS_NAMES[p.gas] + ' (MQ-2 ' + p.rA.toFixed(2) + ', MQ-7 ' + p.rB.toFixed(2) + ')'); lr(GAS_NAMES[p.gas] + ' alert', GAS_NAMES[p.gas] + ', MQ-2 ' + p.rA.toFixed(2) + ' x, MQ-7 ' + p.rB.toFixed(2) + ' x'); }
       else if (p.gas === 0) logEv('GAS', 'ok', 'Back to clean air');
       prevGas = p.gas;
     }
@@ -638,7 +647,7 @@
   function setMode(m){
     mode = m;
     $('m-sim').setAttribute('aria-pressed', String(m === 'sim')); $('m-live').setAttribute('aria-pressed', String(m === 'live'));
-    $('connect').hidden = (m !== 'live'); $('selftest').hidden = (m !== 'live'); if (m !== 'live' && selfT){ clearInterval(selfT); selfT = null; $('selftest').textContent = 'Test lines'; } $('sim-card').hidden = (m !== 'sim'); $('res-card').hidden = (m !== 'sim'); $('link-card').hidden = (m !== 'live'); $('chk-card').hidden = (m !== 'live'); chkReset(); $('env-card').hidden = (m !== 'sim'); $('stop').hidden = $('reset').hidden = (m !== 'sim'); $('r-label').hidden = (m !== 'live'); clearSources();
+    $('connect').hidden = (m !== 'live'); $('selftest').hidden = (m !== 'live'); if (m !== 'live' && selfT){ clearInterval(selfT); selfT = null; $('selftest').textContent = 'Test lines'; } $('sim-card').hidden = (m !== 'sim'); $('res-card').hidden = false;$('link-card').hidden = (m !== 'live'); $('chk-card').hidden = (m !== 'live'); chkReset(); $('env-card').hidden = (m !== 'sim'); $('stop').hidden = $('reset').hidden = (m !== 'sim'); $('r-label').hidden = (m !== 'live'); clearSources();
     $('hint').textContent = m === 'sim' ? 'drag to tilt the hand' : 'drag to turn the view';
     const chip = $('chip'); if (m === 'sim'){ chip.className = 'chip'; chip.textContent = 'Simulation'; chip.hidden = true; $('notice').hidden = true; } else { chip.hidden = false; chip.className = 'chip wait'; chip.textContent = 'Live, not connected'; const n = $('notice'); n.hidden = false; n.textContent = 'Live mode: plug the base ESP32 into this laptop with USB, press Connect base station and choose its COM port. No hardware yet? Press Send test lines to feed the page through the same serial parser.'; }
     Object.assign(S, { has:false, got:0, lost:0, flags:0, gas:0, hr:0, spo2:0, rA:1, rB:1, rtt:0, peak:1 }); prevFlags = 0; prevGas = 0; cur = null;
@@ -994,6 +1003,8 @@
   S.got = 0; S.lost = 0; sim.lost = 0; S.peak = 1; evCount = 0; rec.rows.length = 0; $('r-count').textContent = '0 rows'; $('r-dl').disabled = true; $('r-clear').disabled = true;
   $('log').innerHTML = ''; $('log-empty').hidden = false; $('log-n').textContent = '';
   const hash = location.hash;
+  if (hash.indexOf('fulltest') >= 0) setTimeout(() => demo.click(), 500);
+  if (hash.indexOf('livetest') >= 0) setTimeout(() => { m-live.click(); selftest.click(); }, 500);
   if (hash.indexOf('alerts') >= 0){ setTimeout(() => runScenario('smoke'), 300); setTimeout(() => runScenario('fall'), 3500); }
   simStart(); initHand(); chart(); paint(); requestAnimationFrame(frame);
   let saved = null; try { saved = localStorage.getItem('shieldx-theme'); } catch (e) {}
